@@ -1,0 +1,118 @@
+﻿@page "/add"
+@rendermode InteractiveServer
+@inject IEmployeeServicecs employeeService
+@inject NavigationManager navigationManager
+@inject IJSRuntime jsRuntime
+
+<PageTitle>Добавление сотрудника</PageTitle>
+
+<h3>Добавление нового сотрудника</h3>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <!-- УБЕРИТЕ ФОРМУ для простоты -->
+            <div class="form-group mb-3">
+                <label>Имя *</label>
+                <input @bind="NewEmployee.Name" class="form-control" />
+                <small class="text-muted">Введено: @NewEmployee.Name</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Фамилия *</label>
+                <input @bind="NewEmployee.Surname" class="form-control" />
+                <small class="text-muted">Введено: @NewEmployee.Surname</small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Телефон</label>
+                <input @bind="NewEmployee.Phone" class="form-control" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Email</label>
+                <input @bind="NewEmployee.Email" class="form-control" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label>День рождения</label>
+                <input type="date" @bind="birthdayDate" class="form-control" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Должность</label>
+                <input @bind="NewEmployee.Job_Title" class="form-control" />
+            </div>
+
+            <div class="form-group mb-3">
+                <label>Статус</label>
+                <select @bind="NewEmployee.Status" class="form-select">
+                    <option value="Работает">Работает</option>
+                    <option value="В отпуске">В отпуске</option>
+                    <option value="Болеет">Болеет</option>
+                    <option value="Уволен">Уволен</option>
+                </select>
+            </div>
+
+            <div class="btn-group mt-3">
+                <button class="btn btn-success" @onclick="SaveEmployee">
+                    <i class="bi bi-person-plus me-1"></i>Добавить
+                </button>
+                <button class="btn btn-secondary" @onclick="Cancel">
+                    <i class="bi bi-x-circle me-1"></i>Отмена
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Отладочная информация -->
+<div class="alert alert-info mt-3">
+    <p>Имя: @NewEmployee.Name</p>
+    <p>Фамилия: @NewEmployee.Surname</p>
+    <p>Статус: @NewEmployee.Status</p>
+    <p>Дата: @birthdayDate.ToString("dd.MM.yyyy")</p>
+</div>
+
+@code {
+    private Employee NewEmployee { get; set; } = new();
+    private DateTime birthdayDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync() 
+    {
+        await base.OnInitializedAsync();
+    }
+
+    private async Task SaveEmployee()
+    {
+        try
+        {
+
+            if (string.IsNullOrWhiteSpace(NewEmployee.Name) || string.IsNullOrWhiteSpace(NewEmployee.Surname))
+            {
+                await jsRuntime.InvokeVoidAsync("alert", "Заполните обязательные поля: Имя и Фамилия");
+                return;
+            }
+            // Конвертируем DateTime в DateOnly
+            NewEmployee.Birthday = DateOnly.FromDateTime(birthdayDate);
+
+            // Сохраняем в базу
+            await employeeService.AddEmployeeAsync(NewEmployee);
+
+            await jsRuntime.InvokeVoidAsync("alert", "Сотрудник успешно добавлен!");
+
+            // Переходим обратно к списку
+            navigationManager.NavigateTo("/employees");
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("alert", $"Ошибка: {ex.Message}");
+        }
+    }
+
+    private void Cancel()
+    {
+        navigationManager.NavigateTo("/employees");
+    }
+}
+

@@ -1,0 +1,176 @@
+﻿@page "/work_hours"
+@attribute [Authorize]
+@inject IEmployeeServicecs emp
+@rendermode InteractiveServer
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Учет рабочего времени</PageTitle>
+
+<div class="page-header mb-4">
+    <h1 class="display-6 text-dark">Модуль для контроля посещаемости</h1>
+    <p class="lead text-muted">
+        Система учета рабочих часов сотрудников. Здесь вы можете ввести количество отработанных часов
+        за неделю для каждого сотрудника. Данные автоматически сохраняются и используются для расчета заработной платы.
+    </p>
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Как пользоваться:</strong> Введите количество часов для каждого сотрудника и нажмите "Сохранить".
+        Максимальное количество часов в неделю для одного сотрудника - 40.
+    </div>
+    <hr class="my-3">
+</div>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-clock me-2"></i>Учет рабочих часов
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Список сотрудников -->
+                    @foreach (var employee in employees)
+                    {
+                        <div class="row align-items-center mb-3 p-2 border rounded">
+                            <div class="col-md-1 text-muted small">
+                                #@employee.Id
+                            </div>
+                            <div class="col-md-6">
+                                <strong>@employee.Name @employee.Surname</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input type="number"
+                                           class="form-control"
+                                           step="1"
+                                           min="0"
+                                           max="40"
+                                           placeholder="0"
+                                           @bind="employee.Hours" />
+                                    <span class="input-group-text">часов</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
+                    <!-- Статистика -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <div class="row text-center">
+                            <div class="col">
+                                <small class="text-muted">Всего сотрудников</small>
+                                <h5>@employees.Count</h5>
+                            </div>
+                            <div class="col">
+                                <small class="text-muted">С заполненными часами</small>
+                                <h5>@employees.Count(e => e.Hours > 0)</h5>
+                            </div>
+                            <div class="col">
+                                <small class="text-muted">Общее время</small>
+                                <h5>@employees.Sum(e => e.Hours) ч</h5>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Кнопки -->
+                    <div class="mt-4 text-center">
+                        <button class="btn btn-success me-2" @onclick="SaveAll">
+                            <i class="bi bi-check-circle me-2"></i>Сохранить
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="ClearAll">
+                            <i class="bi bi-x-circle me-2"></i>Очистить все
+                        </button>
+                    </div>
+
+                    <!-- БЛОК СООБЩЕНИЙ - ДОБАВЬТЕ ЭТО -->
+                    @if (!string.IsNullOrEmpty(message))
+                    {
+                        <div class="alert @(showSuccessMessage ? "alert-success" : "alert-danger") mt-3">
+                            @message
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string message = string.Empty;
+    private bool showSuccessMessage = false;
+    private List<Employee> employees = new();
+
+    private Employee? employee;
+    private DateTime birthdayDate = DateTime.Today;
+
+    [Parameter] public int Id { get; set; }
+    private EmployeeStatistics? statistics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        employees = (await emp.GetEmployeesAsync()).ToList();
+        if (Id > 0)
+        {
+            statistics = await emp.GetEmployeeStatisticsAsync(Id);
+        }
+    }
+
+    private async Task SaveAll()
+    {
+        try
+        {
+            // Валидация
+            var invalidEmployees = employees.Where(e => e.Hours < 0 || e.Hours > 168).ToList();
+            if (invalidEmployees.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("alert",
+                    $"Ошибка: у {invalidEmployees.Count} сотрудников некорректное количество часов");
+                return;
+            }
+
+            // Сохраняем в базу
+            await emp.SaveEmployeesWorkHoursAsync(employees);
+
+            // Перезагружаем данные
+            employees = (await emp.GetEmployeesAsync()).ToList();
+
+            var newTotalHours = employees.Sum(e => e.Hours);
+            var newEmployeesWithHours = employees.Count(e => e.Hours > 0);
+
+            if (newEmployeesWithHours > 0)
+            {
+                await JSRuntime.InvokeVoidAsync("alert",
+                    $"✅ Рабочие часы сохранены!\n" +
+                    $"Сотрудников с часами: {newEmployeesWithHours}\n" +
+                    $"Общее время: {newTotalHours} часов");
+
+                message = $"Данные сохранены! {newEmployeesWithHours} сотрудников с часами";
+                showSuccessMessage = true;
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "ℹ️ Все часы установлены в 0");
+                message = "Все рабочие часы сброшены до 0";
+                showSuccessMessage = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"❌ Ошибка сохранения: {ex.Message}");
+            message = $"Ошибка сохранения: {ex.Message}";
+            showSuccessMessage = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private void ClearAll()
+    {
+        foreach (var employee in employees)
+        {
+            employee.Hours = 0;
+        }
+        StateHasChanged();
+    }
+}

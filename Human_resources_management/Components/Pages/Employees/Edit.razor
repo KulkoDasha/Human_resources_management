@@ -1,0 +1,158 @@
+﻿@page "/employees/edit/{Id:int}"
+@inject IEmployeeServicecs employeeService
+@inject NavigationManager navigationManager
+@inject IJSRuntime jsRuntime
+@rendermode InteractiveServer
+
+<PageTitle>Редактирование сотрудника</PageTitle>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-pencil-square me-2"></i>
+                        Редактирование сотрудника
+                    </h4>
+                </div>
+                <div class="card-body">
+                    @if (employee == null)
+                    {
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mt-2">Загрузка данных...</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <EditForm Model="employee" OnValidSubmit="SaveEmployee">
+                            <DataAnnotationsValidator />
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Имя *</label>
+                                        <InputText @bind-Value="employee.Name" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Name)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Фамилия *</label>
+                                        <InputText @bind-Value="employee.Surname" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Surname)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Телефон *</label>
+                                        <InputText @bind-Value="employee.Phone" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Phone)" class="text-danger" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Email *</label>
+                                        <InputText @bind-Value="employee.Email" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Email)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">День рождения *</label>
+                                        <input type="date" @bind="birthdayDate" class="form-control" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Должность *</label>
+                                        <InputText @bind-Value="employee.Job_Title" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Job_Title)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group mb-4">
+                                <label class="form-label">Статус *</label>
+                                <select @bind="employee.Status" class="form-select">
+                                    <option value="Активен">Активен</option>
+                                    <option value="Отпуск">Отпуск</option>
+                                    <option value="Болеет">Болеет</option>
+                                    <option value="Уволен">Уволен</option>
+                                </select>
+                                <ValidationMessage For="@(() => employee.Status)" class="text-danger" />
+                            </div>
+
+                            <div class="d-flex gap-2 justify-content-end">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="bi bi-check-circle me-1"></i>Сохранить
+                                </button>
+                                <button type="button" class="btn btn-secondary" @onclick="Cancel">
+                                    <i class="bi bi-x-circle me-1"></i>Отмена
+                                </button>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Employee? employee;
+    private DateTime birthdayDate = DateTime.Today;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id > 0)
+        {
+            employee = await employeeService.GetEmployeeAsync(Id);
+            if (employee != null && employee.Birthday.HasValue)
+            {
+                // Проверяем на null и конвертируем
+                birthdayDate = new DateTime(employee.Birthday.Value.Year,
+                                          employee.Birthday.Value.Month,
+                                          employee.Birthday.Value.Day);
+            }
+            else if (employee != null)
+            {
+                // Если Birthday null, устанавливаем сегодняшнюю дату
+                birthdayDate = DateTime.Today;
+            }
+        }
+        else
+        {
+            navigationManager.NavigateTo("/employees");
+        }
+    }
+
+    private async Task SaveEmployee()
+    {
+        if (employee != null)
+        {
+            // Конвертируем DateTime в DateOnly
+            employee.Birthday = DateOnly.FromDateTime(birthdayDate);
+
+            await employeeService.UpdateEmployeeAsync(employee);
+            await jsRuntime.InvokeVoidAsync("alert", "Данные сотрудника успешно обновлены!");
+            navigationManager.NavigateTo("/employees");
+        }
+    }
+
+    private void Cancel()
+    {
+        navigationManager.NavigateTo("/employees");
+    }
+}

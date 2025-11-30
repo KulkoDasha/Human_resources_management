@@ -1,0 +1,196 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject IEmployeeServicecs emp
+@inject NavigationManager navigate
+@attribute [Authorize]
+
+
+<PageTitle>Дашборд</PageTitle>
+
+<div class="page-header mb-4">
+    <h1 class="display-6 text-dark">Главная страница</h1>
+    <p class="lead text-muted">
+        Общая статистика и ключевые показатели по сотрудникам компании
+    </p>
+    <hr class="my-3">
+</div>
+
+@if (statistics == null)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-2">Загрузка статистики...</p>
+    </div>
+}
+else
+{
+    <div class="row">
+        <!-- Карточка: Всего сотрудников -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Всего сотрудников
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @statistics.TotalEmployees
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-people fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточка: Активные -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Активные сотрудники
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @statistics.ActiveEmployees
+                            </div>
+                            <div class="text-xs text-muted">
+                                @GetPercentage(statistics.ActiveEmployees, statistics.TotalEmployees)% от общего числа
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточка: В отпуске -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                В отпуске
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @statistics.OnVacation
+                            </div>
+                            <div class="text-xs text-muted">
+                                @GetPercentage(statistics.OnVacation, statistics.TotalEmployees)% от общего числа
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-sun fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточка: На больничном -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                На больничном
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @statistics.OnSickLeave
+                            </div>
+                            <div class="text-xs text-muted">
+                                @GetPercentage(statistics.OnSickLeave, statistics.TotalEmployees)% от общего числа
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-heart-pulse fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Дополнительные карточки -->
+    <div class="row">
+        <!-- Карточка: Уволенные -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Уволенные
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @statistics.Dismissed
+                            </div>
+                            <div class="text-xs text-muted">
+                                @GetPercentage(statistics.Dismissed, statistics.TotalEmployees)% от общего числа
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-person-x fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Карточка: Коэффициент активности -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-dark shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">
+                                Коэффициент активности
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                @GetActivityRate(statistics)%
+                            </div>
+                            <div class="text-xs text-muted">
+                                Активные / Всего сотрудников
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="bi bi-graph-up fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+    private EmployeeStatistics? statistics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        statistics = await emp.GetEmployeeStatisticsAsync(Id);
+    }
+
+    private string GetPercentage(int part, int total)
+    {
+        if (total == 0) return "0";
+        return ((double)part / total * 100).ToString("0.0");
+    }
+
+    private string GetActivityRate(EmployeeStatistics stats)
+    {
+        if (stats.TotalEmployees == 0) return "0";
+        return ((double)stats.ActiveEmployees / stats.TotalEmployees * 100).ToString("0.0");
+    }
+}
