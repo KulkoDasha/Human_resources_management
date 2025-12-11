@@ -1,183 +1,506 @@
 ﻿@page "/salary"
 @attribute [Authorize]
-@inject IEmployeeServicecs emp
 @rendermode InteractiveServer
-@inject IJSRuntime JSRuntime
+@inject IEmployeeServicecs employeeService
+@inject IJSRuntime jsRuntime
 
-<PageTitle>Заработная плата</PageTitle>
+<PageTitle>Расчет заработной платы</PageTitle>
 
-<div class="page-header mb-4">
-    <h1 class="display-6 text-dark">Расчет заработной платы</h1>
-    <p class="lead text-muted">
-        Расчет заработной платы сотрудников на основе отработанных часов и установленных ставок.
-        Здесь вы можете управлять почасовыми ставками и премиальными выплатами.
-    </p>
-    <div class="alert alert-info">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Как пользоваться:</strong> Установите почасовую ставку и премию для каждого сотрудника.
-        Система автоматически рассчитает общую сумму к выплате.
+<div class="container">
+    <!-- Заголовок -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6 text-dark">
+            <i class="bi bi-cash-coin me-2"></i>Расчет заработной платы
+        </h1>
+        <div class="text-end">
+            <div class="fw-bold text-primary">
+                Расчетный месяц: @DateTime.Now.ToString("MMMM yyyy")
+            </div>
+            <small class="text-muted">Рабочие часы умножаются на часовую ставку</small>
+        </div>
     </div>
-    <hr class="my-3">
-</div>
 
-<div class="container mt-4">
-    <div class="row justify-content-center">
-        <div class="col-md-10">
-            <div class="card shadow">
-                <div class="card-header bg-dark text-white">
-                    <h4 class="mb-0">
-                        <i class="bi bi-clock me-2"></i>Расчёт заработной платы
-                    </h4>
+    <!-- Панель статистики -->
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2">Загрузка данных о зарплатах...</p>
+        </div>
+    }
+    else if (employees == null || !employees.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-people me-2"></i>
+            Сотрудники не найдены
+        </div>
+    }
+    else
+    {
+        <!-- Панель статистики -->
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Общая зарплата</h6>
+                        <h3 class="text-primary">@totalSalary.ToString("N0") ₽</h3>
+                        <small class="text-muted">@employees.Count сотрудников</small>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <!-- Список сотрудников -->
-                    @foreach (var employee in employees)
-                    {
-                        <div class="row align-items-center mb-3 p-2 border rounded">
-                            <div class="col-md-1 text-muted small">
-                                #@employee.Id
-                            </div>
-                            <div class="col-md-3">
-                                <strong>@employee.Name @employee.Surname</strong>
-                            </div>
-                            <div class="col-md-2">
-                                <strong>@employee.Hours ч/нед</strong>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="input-group">
-                                    <input type="number"
-                                           class="form-control"
-                                           step="1000"
-                                           min="0"
-                                           max="50000"
-                                           placeholder="0"
-                                           @bind="employee.Bonus" />
-                                    <span class="input-group-text">руб</span>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="input-group">
-                                    <input type="number"
-                                           class="form-control"
-                                           step="1000"
-                                           min="0"
-                                           max="100000"
-                                           placeholder="0" 
-                                           @bind="employee.Salary" />
-                                    <span class="input-group-text">руб/час</span>
-                                </div>
-                            </div>
-                        </div>
-                    }
-
-                    <!-- Статистика -->
-                    <div class="mt-4 p-3 bg-light rounded">
-                        <div class="row text-center">
-                            <div class="col">
-                                <small class="text-muted">Всего сотрудников</small>
-                                <h5>@employees.Count</h5>
-                            </div>
-                            <div class="col">
-                                <small class="text-muted">С премией</small>
-                                <h5>@employees.Count(e => e.Bonus > 0)</h5>
-                            </div>
-                            <div class="col">
-                                <small class="text-muted">Общая зарплата</small>
-                                <h5>@employees.Sum(e => e.Hours * e.Salary + e.Bonus).ToString("N0") руб</h5>
-                            </div>
-                        </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Всего часов</h6>
+                        <h3 class="text-success">@totalHours</h3>
+                        <small class="text-muted">в месяц</small>
                     </div>
-
-                    <!-- Кнопки -->
-                    <div class="mt-4 text-center">
-                        <button class="btn btn-success me-2" @onclick="SaveAll">
-                            <i class="bi bi-check-circle me-2"></i>Сохранить
-                        </button>
-                        <button class="btn btn-outline-secondary" @onclick="ClearAll">
-                            <i class="bi bi-x-circle me-2"></i>Очистить все
-                        </button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Средняя ставка</h6>
+                        <h3 class="text-info">@averageHourlyRate.ToString("F2") ₽/ч</h3>
+                        <small class="text-muted">за час</small>
                     </div>
-
-                    <!-- Сообщения -->
-                    @if (!string.IsNullOrEmpty(message))
-                    {
-                        <div class="alert @(showSuccessMessage ? "alert-success" : "alert-danger") mt-3">
-                            @message
-                        </div>
-                    }
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Премии</h6>
+                        <h3 class="text-warning">@totalBonus.ToString("N0") ₽</h3>
+                        <small class="text-muted">доп. выплаты</small>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+        <!-- Основная таблица -->
+        <div class="table-responsive border rounded">
+            <table class="table table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th width="5%">ID</th>
+                        <th>Сотрудник</th>
+                        <th>Должность</th>
+                        <th class="text-center">График работы</th>
+                        <th class="text-center">Норма часов</th>
+                        <th class="text-center">Факт часов</th>
+                        <th class="text-center">Ставка</th>
+                        <th class="text-center">Премия</th>
+                        <th class="text-center">Итого</th>
+                        <th width="10%">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var emp in employees)
+                    {
+                        var monthlyNorm = emp.WorkingDaysPerWeek * emp.HoursPerDay * 4; // Норма в месяц
+                        var salary = (emp.Hours * emp.Salary) + emp.Bonus;
+
+                        <tr>
+                            <td class="fw-bold">@emp.Id</td>
+                            <td>
+                                <div class="fw-bold">@emp.Name @emp.Surname</div>
+                                <small class="text-muted">@emp.Status</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">@emp.Job_Title</span>
+                            </td>
+                            <td class="text-center">
+                                <small>
+                                    @emp.WorkingDaysPerWeek дн/нед<br>
+                                    @emp.HoursPerDay ч/день
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info">@monthlyNorm ч</span>
+                            </td>
+                            <td class="text-center">
+                                <div class="input-group input-group-sm" style="width: 120px;">
+                                    <input type="number"
+                                           class="form-control form-control-sm text-center"
+                                           min="0"
+                                           max="300"
+                                           value="@emp.Hours"
+                                           @onchange="@(e => OnHoursChanged(emp, e))" />
+                                    <span class="input-group-text">ч</span>
+                                </div>
+                                @if (emp.Hours > monthlyNorm)
+                                {
+                                    <small class="text-success">+@(emp.Hours - monthlyNorm) ч сверхурочно</small>
+                                }
+                                else if (emp.Hours < monthlyNorm)
+                                {
+                                    <small class="text-warning">-@(monthlyNorm - emp.Hours) ч недовыработка</small>
+                                }
+                            </td>
+                            <td class="text-center align-middle">
+                                <div class="fw-bold text-primary">@emp.Salary.ToString("N2")</div>
+                                <div class="text-muted small">₽/ч</div>
+                            </td>
+                            <td class="text-center">
+                                <div class="input-group input-group-sm" style="width: 140px;">
+                                    <input type="number"
+                                           class="form-control form-control-sm text-center"
+                                           min="0"
+                                           step="1000"
+                                           max="100000"
+                                           value="@emp.Bonus.ToString("F2")"
+                                           @onchange="@(e => OnBonusChanged(emp, e))" />
+                                    <span class="input-group-text">₽</span>
+                                </div>
+                                <small class="text-muted">
+                                    @(emp.Bonus > 0 ? $"+{emp.Bonus.ToString("F2")} ₽" : "нет")
+                                </small>
+                            </td>
+                            <td class="text-center">
+                                <div class="fw-bold text-success">
+                                    @salary.ToString("N0") ₽
+                                </div>
+                                <small class="text-muted">
+                                    @((emp.Hours * emp.Salary).ToString("N0")) ₽ + @emp.Bonus.ToString("N0") ₽
+                                </small>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-success w-100"
+                                        @onclick="() => SaveEmployee(emp)">
+                                    <i class="bi bi-save"></i> Сохранить
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <td colspan="5" class="fw-bold text-end">ИТОГО:</td>
+                        <td class="text-center fw-bold">@totalHours ч</td>
+                        <td></td>
+                        <td class="text-center fw-bold">@totalBonus.ToString("N0") ₽</td>
+                        <td class="text-center fw-bold text-primary">@totalSalary.ToString("N0") ₽</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Детализация расчета -->
+        <div class="row mt-4">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calculator me-2"></i>Детализация расчета
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Сотрудник</th>
+                                        <th class="text-end">Часы</th>
+                                        #<th class="text-end">Ставка</th>
+                                        <th class="text-end">Оклад</th>
+                                        <th class="text-end">Премия</th>
+                                        <th class="text-end">Итого</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var emp in employees.OrderByDescending(e => (e.Hours * e.Salary) + e.Bonus))
+                                    {
+                                        var salary = (emp.Hours * emp.Salary) + emp.Bonus;
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">@emp.Name @emp.Surname</div>
+                                                <small class="text-muted">@emp.Job_Title</small>
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                @emp.Hours ч
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                <div class="text-primary">@emp.Salary.ToString("N2") ₽/ч</div>
+                                                @if (emp.Salary > 0)
+                                                {
+                                                    <small class="text-muted">@((emp.Salary * 8).ToString("N2")) ₽/день</small>
+                                                }
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                @((emp.Hours * emp.Salary).ToString("N2")) ₽
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                @if (emp.Bonus > 0)
+                                                {
+                                                    <span class="badge bg-warning text-dark">+@emp.Bonus.ToString("N2") ₽</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td class="text-end align-middle">
+                                                <div class="fw-bold text-success">@salary.ToString("N2") ₽</div>
+                                                <small class="text-muted">
+                                                    @((emp.Hours * emp.Salary).ToString("N2")) ₽ + @emp.Bonus.ToString("N2") ₽
+                                                </small>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-pie-chart me-2"></i>Распределение фонда оплаты
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Основной оклад:</span>
+                                <span class="fw-bold">@totalBaseSalary.ToString("N0") ₽</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                @{
+                                    var basePercentage = totalSalary > 0 ? (totalBaseSalary * 100) / totalSalary : 0;
+                                }
+                                <div class="progress-bar bg-success" style="width: @basePercentage%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>Премии:</span>
+                                <span class="fw-bold">@totalBonus.ToString("N0") ₽</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                @{
+                                    var bonusPercentage = totalSalary > 0 ? (totalBonus * 100) / totalSalary : 0;
+                                }
+                                <div class="progress-bar bg-warning" style="width: @bonusPercentage%"></div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <div class="list-group">
+                                @if (employees.Any())
+                                {
+                                    var maxEmployee = employees.MaxBy(e => (e.Hours * e.Salary) + e.Bonus);
+                                    var minEmployee = employees.MinBy(e => (e.Hours * e.Salary) + e.Bonus);
+
+                                    <div class="list-group-item d-flex justify-content-between">
+                                        <span>Максимальная зарплата:</span>
+                                        <span class="fw-bold text-success">
+                                            @maxEmployee?.Name - @((maxEmployee?.Hours * maxEmployee?.Salary + maxEmployee?.Bonus)?.ToString("N0")) ₽
+                                        </span>
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between">
+                                        <span>Минимальная зарплата:</span>
+                                        <span class="fw-bold text-danger">
+                                            @minEmployee?.Name - @((minEmployee?.Hours * minEmployee?.Salary + minEmployee?.Bonus)?.ToString("N0")) ₽
+                                        </span>
+                                    </div>
+                                    <div class="list-group-item d-flex justify-content-between">
+                                        <span>Средняя зарплата:</span>
+                                        <span class="fw-bold text-primary">
+                                            @averageSalary.ToString("N0") ₽
+                                        </span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Кнопки управления -->
+        <div class="mt-4 p-3 border rounded bg-light">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-0">
+                        <i class="bi bi-gear me-2"></i>Управление расчетами
+                    </h6>
+                    <small class="text-muted">
+                        Всего сотрудников: @employees.Count
+                    </small>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary me-2" @onclick="SaveAll">
+                        <i class="bi bi-save-all me-1"></i>Сохранить все
+                    </button>
+                    <button class="btn btn-outline-secondary" @onclick="ResetAll">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Сбросить
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
+<style>
+    .input-group-sm input {
+        font-size: 0.875rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .progress {
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .card {
+        transition: box-shadow 0.3s;
+    }
+
+        .card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+</style>
 
 @code {
-    private string message = string.Empty;
-    private bool showSuccessMessage = false;
-    private List<Employee> employees = new();
-
-    [Parameter] public int Id { get; set; }
-    private EmployeeStatistics? statistics;
+    private List<Employee>? employees;
+    private bool isLoading = true;
+    private decimal totalSalary;
+    private decimal totalBaseSalary;
+    private decimal totalBonus;
+    private int totalHours;
+    private decimal averageSalary;
+    private decimal averageHourlyRate;
 
     protected override async Task OnInitializedAsync()
     {
-        employees = (await emp.GetEmployeesAsync()).ToList();
-        if (Id > 0)
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        try
         {
-            statistics = await emp.GetEmployeeStatisticsAsync(Id);
+            var employeeList = await employeeService.GetEmployeesAsync();
+            employees = employeeList?.ToList() ?? new List<Employee>();
+            CalculateTotals();
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("alert", $"Ошибка загрузки: {ex.Message}");
+            employees = new List<Employee>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
         }
     }
 
-    private void ClearAll()
+    private void OnHoursChanged(Employee employee, ChangeEventArgs e)
     {
-        foreach (var employee in employees)
+        if (int.TryParse(e.Value?.ToString(), out int hours))
         {
-            employee.Hours = 0;
+            employee.Hours = hours;
+            CalculateTotals();
         }
+    }
+
+    private void OnSalaryChanged(Employee employee, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out decimal salaryDecimal))
+        {
+            employee.Salary = (int)salaryDecimal; 
+            CalculateTotals();
+        }
+    }
+
+    private void OnBonusChanged(Employee employee, ChangeEventArgs e)
+    {
+        if (decimal.TryParse(e.Value?.ToString(), out decimal bonusDecimal))
+        {
+            employee.Bonus = (int)bonusDecimal; 
+            CalculateTotals();
+        }
+    }
+
+    private void CalculateTotals()
+    {
+        if (employees == null || !employees.Any())
+        {
+            totalSalary = 0;
+            totalBaseSalary = 0;
+            totalBonus = 0;
+            totalHours = 0;
+            averageSalary = 0;
+            averageHourlyRate = 0;
+            return;
+        }
+
+        totalHours = employees.Sum(e => e.Hours);
+        totalBaseSalary = employees.Sum(e => e.Hours * e.Salary);
+        totalBonus = employees.Sum(e => e.Bonus);
+        totalSalary = totalBaseSalary + totalBonus;
+
+        averageSalary = employees.Count > 0 ? totalSalary / employees.Count : 0;
+
+        var totalHourly = employees.Sum(e => e.Salary);
+        averageHourlyRate = employees.Count > 0 ? totalHourly / employees.Count : 0;
+
         StateHasChanged();
     }
+
+    private async Task SaveEmployee(Employee employee)
+    {
+        try
+        {
+            await employeeService.UpdateEmployeeAsync(employee);
+            await jsRuntime.InvokeVoidAsync("alert",
+                $"Зарплата сотрудника {employee.Name} сохранена!\n" +
+                $"Итого: {((employee.Hours * employee.Salary) + employee.Bonus).ToString("N0")} ₽");
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("alert", $"Ошибка: {ex.Message}");
+        }
+    }
+
     private async Task SaveAll()
     {
         try
         {
-            // Валидация
-            var invalidEmployees = employees.Where(e => e.Hours < 0 || e.Hours > 168).ToList();
-            if (invalidEmployees.Any())
+            if (employees != null)
             {
-                await JSRuntime.InvokeVoidAsync("alert",
-                    $"Ошибка: у {invalidEmployees.Count} сотрудников некорректное количество часов");
-                return;
-            }
+                foreach (var emp in employees)
+                {
+                    await employeeService.UpdateEmployeeAsync(emp);
+                }
 
-            // Сохраняем в базу
-            await emp.SaveEmployeesWorkHoursAsync(employees);
-
-            // Перезагружаем данные
-            employees = (await emp.GetEmployeesAsync()).ToList();
-
-            var newTotalHours = employees.Sum(e => e.Hours);
-            var newEmployeesWithHours = employees.Count(e => e.Hours > 0);
-
-            if (newEmployeesWithHours > 0)
-            {
-                await JSRuntime.InvokeVoidAsync("alert",
-                    $"✅ Данные о заработной плате сохранены\n");
-            }
-            else
-            {
-                await JSRuntime.InvokeVoidAsync("alert", "ℹ️ Все часы установлены в 0");
-                message = "Все рабочие часы сброшены до 0";
-                showSuccessMessage = true;
+                await jsRuntime.InvokeVoidAsync("alert",
+                    "✅ Все изменения сохранены!\n" +
+                    $"Общая сумма к выплате: {totalSalary.ToString("N0")} ₽\n" +
+                    $"Сотрудников: {employees.Count}");
             }
         }
         catch (Exception ex)
         {
-            await JSRuntime.InvokeVoidAsync("alert", $"❌ Ошибка сохранения: {ex.Message}");
-            message = $"Ошибка сохранения: {ex.Message}";
-            showSuccessMessage = false;
+            await jsRuntime.InvokeVoidAsync("alert", $"❌ Ошибка: {ex.Message}");
         }
+    }
 
-        StateHasChanged();
+    private async Task ResetAll()
+    {
+        var confirmed = await jsRuntime.InvokeAsync<bool>("confirm",
+            "Сбросить все изменения? Это вернет значения к последнему сохраненному состоянию.");
+
+        if (confirmed)
+        {
+            await LoadData();
+            await jsRuntime.InvokeVoidAsync("alert", "Все изменения сброшены");
+        }
     }
 }
