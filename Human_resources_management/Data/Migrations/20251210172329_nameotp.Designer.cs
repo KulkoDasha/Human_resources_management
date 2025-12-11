@@ -4,6 +4,7 @@ using Human_resources_management.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Human_resources_management.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251210172329_nameotp")]
+    partial class nameotp
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -87,61 +90,6 @@ namespace Human_resources_management.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("Human_resources_management.Data.ArchivedEmployee", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("ArchivedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateOnly?>("Begin_otp")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly?>("Birthday")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateOnly?>("End_otp")
-                        .HasColumnType("date");
-
-                    b.Property<int>("Hours")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Job_Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Phone")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Salary")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Surname")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ArchivedEmployees");
-                });
-
             modelBuilder.Entity("Human_resources_management.Data.Employee", b =>
                 {
                     b.Property<int>("Id")
@@ -150,7 +98,7 @@ namespace Human_resources_management.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateOnly?>("Begin_otp")
+                    b.Property<DateOnly>("Begin_otp")
                         .HasColumnType("date");
 
                     b.Property<DateOnly?>("Birthday")
@@ -162,13 +110,10 @@ namespace Human_resources_management.Migrations
                     b.Property<string>("Email")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<DateOnly?>("End_otp")
+                    b.Property<DateOnly>("End_otp")
                         .HasColumnType("date");
 
                     b.Property<int>("Hours")
-                        .HasColumnType("int");
-
-                    b.Property<int>("HoursPerDay")
                         .HasColumnType("int");
 
                     b.Property<string>("Job_Title")
@@ -189,19 +134,6 @@ namespace Human_resources_management.Migrations
                     b.Property<string>("Surname")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("TotalMonthlyHours")
-                        .HasColumnType("int");
-
-                    b.Property<string>("WorkingDays")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("WorkingDaysMask")
-                        .HasColumnType("int");
-
-                    b.Property<int>("WorkingDaysPerWeek")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.ToTable("EmployItems");
@@ -216,17 +148,12 @@ namespace Human_resources_management.Migrations
                             Email = "kulko.dasha.2006@gmail.com",
                             End_otp = new DateOnly(2025, 12, 17),
                             Hours = 1,
-                            HoursPerDay = 8,
                             Job_Title = "Руководитель отдела",
                             Name = "Даша",
                             Phone = "+7 (912) 399-39-80",
                             Salary = 2500,
                             Status = "Отпуск",
-                            Surname = "Кулько",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт",
-                            WorkingDaysMask = 31,
-                            WorkingDaysPerWeek = 5
+                            Surname = "Кулько"
                         },
                         new
                         {
@@ -237,17 +164,12 @@ namespace Human_resources_management.Migrations
                             Email = "ivan@company.com",
                             End_otp = new DateOnly(2025, 12, 25),
                             Hours = 1,
-                            HoursPerDay = 8,
                             Job_Title = "Менеджер",
                             Name = "Иван",
                             Phone = "+7 (922) 123-45-67",
                             Salary = 1200,
                             Status = "Активен",
-                            Surname = "Петров",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт",
-                            WorkingDaysMask = 31,
-                            WorkingDaysPerWeek = 5
+                            Surname = "Петров"
                         },
                         new
                         {
@@ -258,17 +180,12 @@ namespace Human_resources_management.Migrations
                             Email = "maria@company.com",
                             End_otp = new DateOnly(2026, 1, 17),
                             Hours = 1,
-                            HoursPerDay = 6,
                             Job_Title = "Бухгалтер",
                             Name = "Мария",
                             Phone = "+7 (989) 123-45-68",
                             Salary = 1000,
                             Status = "Болеет",
-                            Surname = "Сидорова",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт,Сб",
-                            WorkingDaysMask = 63,
-                            WorkingDaysPerWeek = 6
+                            Surname = "Сидорова"
                         },
                         new
                         {
@@ -279,17 +196,12 @@ namespace Human_resources_management.Migrations
                             Email = "sergey_2001@company.com",
                             End_otp = new DateOnly(2026, 1, 25),
                             Hours = 1,
-                            HoursPerDay = 6,
                             Job_Title = "Ведущий разработчик",
                             Name = "Сергей",
                             Phone = "+7 (922) 123-45-69",
                             Salary = 2200,
                             Status = "Активен",
-                            Surname = "Иванов",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт,Сб",
-                            WorkingDaysMask = 63,
-                            WorkingDaysPerWeek = 6
+                            Surname = "Иванов"
                         },
                         new
                         {
@@ -300,17 +212,12 @@ namespace Human_resources_management.Migrations
                             Email = "dmitry.volkov@company.com",
                             End_otp = new DateOnly(2026, 2, 2),
                             Hours = 1,
-                            HoursPerDay = 10,
                             Job_Title = "Тестировщик",
                             Name = "Дмитрий",
                             Phone = "+7 (495) 123-45-71",
                             Salary = 900,
                             Status = "Активен",
-                            Surname = "Волков",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт",
-                            WorkingDaysMask = 15,
-                            WorkingDaysPerWeek = 4
+                            Surname = "Волков"
                         },
                         new
                         {
@@ -321,17 +228,12 @@ namespace Human_resources_management.Migrations
                             Email = "elena.novikova@company.com",
                             End_otp = new DateOnly(2026, 2, 9),
                             Hours = 1,
-                            HoursPerDay = 10,
                             Job_Title = "Системный администратор",
                             Name = "Елена",
                             Phone = "+7 (495) 123-45-72",
                             Salary = 1300,
                             Status = "Уволен",
-                            Surname = "Новикова",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт",
-                            WorkingDaysMask = 15,
-                            WorkingDaysPerWeek = 4
+                            Surname = "Новикова"
                         },
                         new
                         {
@@ -342,17 +244,12 @@ namespace Human_resources_management.Migrations
                             Email = "anna.mikhailova@company.com",
                             End_otp = new DateOnly(2026, 2, 17),
                             Hours = 1,
-                            HoursPerDay = 8,
                             Job_Title = "Аналитик",
                             Name = "Анна",
                             Phone = "+7 (495) 123-45-73",
                             Salary = 1500,
                             Status = "Активен",
-                            Surname = "Михайлова",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт",
-                            WorkingDaysMask = 31,
-                            WorkingDaysPerWeek = 5
+                            Surname = "Михайлова"
                         },
                         new
                         {
@@ -363,17 +260,12 @@ namespace Human_resources_management.Migrations
                             Email = "sergey.orlov@company.com",
                             End_otp = new DateOnly(2026, 2, 25),
                             Hours = 1,
-                            HoursPerDay = 8,
                             Job_Title = "Дизайнер",
                             Name = "Сергей",
                             Phone = "+7 (495) 123-45-74",
                             Salary = 1100,
                             Status = "Болеет",
-                            Surname = "Орлов",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт,Пт",
-                            WorkingDaysMask = 31,
-                            WorkingDaysPerWeek = 5
+                            Surname = "Орлов"
                         },
                         new
                         {
@@ -384,17 +276,12 @@ namespace Human_resources_management.Migrations
                             Email = "pavel.morozov@company.com",
                             End_otp = new DateOnly(2026, 3, 17),
                             Hours = 1,
-                            HoursPerDay = 10,
                             Job_Title = "Маркетолог",
                             Name = "Павел",
                             Phone = "+7 (495) 123-45-75",
                             Salary = 1400,
                             Status = "Отпуск",
-                            Surname = "Морозов",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт",
-                            WorkingDaysMask = 15,
-                            WorkingDaysPerWeek = 4
+                            Surname = "Морозов"
                         },
                         new
                         {
@@ -405,17 +292,12 @@ namespace Human_resources_management.Migrations
                             Email = "igor@company.com",
                             End_otp = new DateOnly(2026, 3, 25),
                             Hours = 1,
-                            HoursPerDay = 10,
                             Job_Title = "Заместитель руководителя",
                             Name = "Игорь",
                             Phone = "+7 (495) 123-45-76",
                             Salary = 2000,
                             Status = "Активен",
-                            Surname = "Ивашкин",
-                            TotalMonthlyHours = 0,
-                            WorkingDays = "Пн,Вт,Ср,Чт",
-                            WorkingDaysMask = 15,
-                            WorkingDaysPerWeek = 4
+                            Surname = "Ивашкин"
                         });
                 });
 

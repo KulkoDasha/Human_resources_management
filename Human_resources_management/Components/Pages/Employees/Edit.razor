@@ -80,7 +80,65 @@
                                     </div>
                                 </div>
                             </div>
-
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Начало отпуска *</label>
+                                        <InputDate @bind-Value="employee.Begin_otp" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.Begin_otp)" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Конец отпуска*</label>
+                                        <InputDate @bind-Value="employee.End_otp" class="form-control" />
+                                        <ValidationMessage For="@(() => employee.End_otp)" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group mb-3">
+                                        <label class="form-label">Рабочие дни недели *</label>
+                                        <div class="border rounded p-3">
+                                            <div class="row">
+                                                @foreach (var day in WorkingDaysHelper.DayNames)
+                                                {
+                                                    <div class="col-md-4 mb-2">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input"
+                                                                   type="checkbox"
+                                                                   id="day-@day.Key"
+                                                                   checked="@IsDaySelected(day.Key)"
+                                                                   @onchange="@((e) => ToggleDay(day.Key, (bool)e.Value))" />
+                                                            <label class="form-check-label" for="day-@day.Key">
+                                                                @day.Value
+                                                                @if (WorkingDaysHelper.IsWeekend(day.Key))
+                                                                {
+                                                                    <span class="badge bg-warning text-dark ms-1">Выходной</span>
+                                                                }
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                }
+                                            </div>
+                                            <div class="mt-2">
+                                                <small class="text-muted">
+                                                    Выбрано дней: @selectedDaysCount из 7
+                                                </small>
+                                            </div>
+                                        </div>
+                                        <ValidationMessage For="@(() => employee.WorkingDaysMask)" class="text-danger" />
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-calendar-week me-2"></i>
+                                <strong>Рабочий график:</strong>
+                                <span class="ms-2">
+                                    @string.Join(", ", WorkingDaysHelper.GetWorkingDays(employee.WorkingDaysMask))
+                                </span>
+                            </div>
                             <div class="form-group mb-4">
                                 <label class="form-label">Статус *</label>
                                 <select @bind="employee.Status" class="form-select">
@@ -89,7 +147,6 @@
                                     <option value="Болеет">Болеет</option>
                                     <option value="Уволен">Уволен</option>
                                 </select>
-                                <ValidationMessage For="@(() => employee.Status)" class="text-danger" />
                             </div>
 
                             <div class="d-flex gap-2 justify-content-end">
@@ -113,6 +170,9 @@
 
     private Employee? employee;
     private DateTime birthdayDate = DateTime.Today;
+    private DateTime OTPbegin = DateTime.Today;
+    private DateTime OTPend = DateTime.Today;
+    private int selectedDaysCount;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -125,6 +185,8 @@
                 birthdayDate = new DateTime(employee.Birthday.Value.Year,
                                           employee.Birthday.Value.Month,
                                           employee.Birthday.Value.Day);
+
+
             }
             else if (employee != null)
             {
@@ -140,14 +202,32 @@
 
     private async Task SaveEmployee()
     {
-        if (employee != null)
+        try
         {
-            // Конвертируем DateTime в DateOnly
-            employee.Birthday = DateOnly.FromDateTime(birthdayDate);
+            // Получаем текущие данные сотрудника
+            var oldEmployee = await employeeService.GetEmployeeAsync(employee.Id);
+            var wasDismissed = oldEmployee?.Status == "Уволен";
+            var isNowDismissed = employee.Status == "Уволен";
 
+            // Сохраняем изменения
             await employeeService.UpdateEmployeeAsync(employee);
-            await jsRuntime.InvokeVoidAsync("alert", "Данные сотрудника успешно обновлены!");
+
+            // Если сотрудник стал уволенным
+            if (!wasDismissed && isNowDismissed)
+            {
+                await jsRuntime.InvokeVoidAsync("alert",
+                    $"Сотрудник {employee.Name} {employee.Surname} перемещен в архив уволенных!");
+            }
+            else
+            {
+                await jsRuntime.InvokeVoidAsync("alert", "Сотрудник успешно обновлен!");
+            }
+
             navigationManager.NavigateTo("/employees");
+        }
+        catch (Exception ex)
+        {
+            await jsRuntime.InvokeVoidAsync("alert", $"Ошибка: {ex.Message}");
         }
     }
 
@@ -155,4 +235,51 @@
     {
         navigationManager.NavigateTo("/employees");
     }
+    private bool IsDaySelected(int dayIndex)
+    {
+        if (employee == null) return false;
+        return (employee.WorkingDaysMask & (1 << dayIndex)) != 0;
+    }
+
+    // Переключение дня
+    private void ToggleDay(int dayIndex, bool isChecked)
+    {
+        if (employee == null) return;
+
+        if (isChecked)
+        {
+            employee.WorkingDaysMask |= (1 << dayIndex);
+        }
+        else
+        {
+            employee.WorkingDaysMask &= ~(1 << dayIndex);
+        }
+
+        // Обновляем количество рабочих дней
+        employee.WorkingDaysPerWeek = CountWorkingDays(employee.WorkingDaysMask);
+        selectedDaysCount = employee.WorkingDaysPerWeek;
+
+        StateHasChanged();
+    }
+
+    // Подсчет рабочих дней
+    private int CountWorkingDays(int mask)
+    {
+        int count = 0;
+        for (int i = 0; i < 7; i++)
+        {
+            if ((mask & (1 << i)) != 0) count++;
+        }
+        return count;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        employee = await employeeService.GetEmployeeAsync(Id);
+        if (employee != null)
+        {
+            selectedDaysCount = CountWorkingDays(employee.WorkingDaysMask);
+        }
+    }
+    
 }

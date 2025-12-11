@@ -1,0 +1,105 @@
+﻿@page "/employees/archived"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject IEmployeeServicecs employeeService
+@inject NavigationManager navigate
+
+<PageTitle>Архив уволенных сотрудников</PageTitle>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6 text-dark">
+            <i class="bi bi-archive me-2"></i>Архив уволенных сотрудников
+        </h1>
+        <button class="btn btn-outline-primary" @onclick="BackToEmployees">
+            <i class="bi bi-arrow-left me-1"></i>Назад к списку
+        </button>
+    </div>
+
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        Здесь отображаются сотрудники, статус которых был изменен на "Уволен"
+    </div>
+
+    @if (archivedEmployees == null)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2">Загрузка архива...</p>
+        </div>
+    }
+    else if (!archivedEmployees.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Архив пуст. Нет уволенных сотрудников.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-secondary">
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя</th>
+                        <th>Фамилия</th>
+                        <th>Должность</th>
+                        <th>Дата увольнения</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var emp in archivedEmployees)
+                    {
+                        <tr>
+                            <td>@emp.Id</td>
+                            <td>@emp.Name</td>
+                            <td>@emp.Surname</td>
+                            <td>@emp.Job_Title</td>
+                            <td>@DateTime.Now.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success"
+                                        @onclick="() => RestoreEmployee(emp.Id)">
+                                    <i class="bi bi-arrow-counterclockwise"></i> Восстановить
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private IEnumerable<Employee>? archivedEmployees;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArchivedEmployees();
+    }
+
+    private async Task LoadArchivedEmployees()
+    {
+        archivedEmployees = await employeeService.GetArchivedEmployeesAsync();
+    }
+
+    private void BackToEmployees()
+    {
+        navigate.NavigateTo("/employees");
+    }
+
+    private async Task RestoreEmployee(int id)
+    {
+        var employee = await employeeService.GetEmployeeAsync(id);
+        if (employee != null)
+        {
+            employee.Status = "Активен";
+            await employeeService.UpdateEmployeeAsync(employee);
+            await LoadArchivedEmployees();
+        }
+    }
+}

@@ -1,0 +1,407 @@
+﻿@page "/schedule"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using Human_resources_management.Data
+@inject IEmployeeServicecs employeeService
+
+<PageTitle>Расписание сотрудников</PageTitle>
+
+<div class="container">
+    <!-- Заголовок с фильтрами -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6 text-dark">
+            <i class="bi bi-calendar-week me-2"></i>Рабочее расписание
+        </h1>
+        
+    </div>
+
+    <!-- Информационная панель -->
+    <div class="alert alert-info mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <i class="bi bi-info-circle me-2"></i>
+                Расписание рабочих дней сотрудников. Зеленым выделены рабочие дни.
+            </div>
+            <div class="col-md-4 text-end">
+                <button class="btn btn-sm btn-outline-primary" @onclick="ToggleWeekendHighlight">
+                    <i class="bi bi-eye @(highlightWeekends ? "text-primary" : "text-secondary")"></i>
+                    Подсветить выходные
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Основная таблица расписания -->
+    @if (filteredEmployees == null)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Загрузка...</span>
+            </div>
+            <p class="mt-2">Загрузка расписания...</p>
+        </div>
+    }
+    else if (!filteredEmployees.Any())
+    {
+        <div class="alert alert-warning">
+            <i class="bi bi-calendar-x me-2"></i>
+            Сотрудники не найдены. Попробуйте изменить фильтры.
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive border rounded">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th style="width: 200px;" class="align-middle">
+                            <div>Сотрудник</div>
+                            <div class="small fw-normal">Всего: @filteredEmployees.Count</div>
+                        </th>
+                        @foreach (var day in daysOfWeek)
+                        {
+                            <th class="text-center @(IsWeekend(day.Index) && highlightWeekends ? "bg-warning text-dark" : "")">
+                                <div>@day.ShortName</div>
+                                <div class="small fw-normal">
+                                    @GetWorkingCount(day.Index) раб.
+                                </div>
+                            </th>
+                        }
+                        <th class="text-center align-middle">
+                            <div>Всего</div>
+                            <div class="small fw-normal">ч/нед</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var emp in filteredEmployees)
+                    {
+                        <tr class="align-middle">
+                            <td>
+                                <div class="fw-bold">@emp.Name @emp.Surname</div>
+                                <div class="small text-muted">
+                                    @emp.Job_Title
+                                    <span class="badge bg-secondary ms-1">ID: @emp.Id</span>
+                                </div>
+                                <div class="small">
+                                    <span class="badge bg-info">@emp.WorkingDaysPerWeek дн/нед</span>
+                                    <span class="badge bg-success ms-1">@emp.HoursPerDay ч/день</span>
+                                </div>
+                            </td>
+                            @for (int i = 0; i < 7; i++)
+                            {
+                                <td class="text-center align-middle
+                                                @(emp.WorksOnDay(i) ? "table-success" : "table-light")
+                                                @(IsWeekend(i) && highlightWeekends ? "weekend-cell" : "")">
+                                    @if (emp.WorksOnDay(i))
+                                    {
+                                        <div class="fw-bold text-success">@emp.HoursPerDay</div>
+                                        <div class="small text-muted">часов</div>
+                                    }
+                                    else
+                                    {
+                                        <div class="text-muted">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                        @if (IsWeekend(i))
+                                        {
+                                            <div class="small text-muted">выходной</div>
+                                        }
+                                    }
+                                </td>
+                            }
+                            <td class="text-center align-middle">
+                                <div class="fw-bold text-primary">
+                                    @(emp.WorkingDaysPerWeek* emp.HoursPerDay)
+                                </div>
+                                <div class="small text-muted">часов</div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-secondary">
+                    <tr>
+                        <td class="fw-bold">ИТОГО:</td>
+                        @for (int i = 0; i < 7; i++)
+                        {
+                            var dayHours = filteredEmployees
+                            .Where(e => e.WorksOnDay(i))
+                            .Sum(e => e.HoursPerDay);
+                            <td class="text-center fw-bold">
+                                @dayHours ч.
+                            </td>
+                        }
+                        <td class="text-center fw-bold text-primary">
+                            @filteredEmployees.Sum(e => e.WorkingDaysPerWeek * e.HoursPerDay) ч.
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <!-- Статистика и графики -->
+        <div class="row mt-4">
+            <!-- Статистика по дням -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-bar-chart me-2"></i>Распределение по дням недели
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            @foreach (var day in daysOfWeek)
+                            {
+                                var count = filteredEmployees.Count(e => e.WorksOnDay(day.Index));
+                                var percentage = filteredEmployees.Count > 0 ?
+                                (count * 100) / filteredEmployees.Count : 0;
+
+                                <div class="col-md-4 mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="fw-bold @(IsWeekend(day.Index) ? "text-warning" : "")">
+                                            @day.FullName
+                                        </span>
+                                        <span class="badge @(IsWeekend(day.Index) ? "bg-warning text-dark" : "bg-primary")">
+                                            @count из @filteredEmployees.Count
+                                        </span>
+                                    </div>
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar @(IsWeekend(day.Index) ? "bg-warning" : "bg-primary")"
+                                             style="width: @percentage%"
+                                             role="progressbar"
+                                             aria-valuenow="@percentage"
+                                             aria-valuemin="0"
+                                             aria-valuemax="100">
+                                            @percentage%
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Типы графиков -->
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-diagram-3 me-2"></i>Типы рабочих графиков
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush">
+                            @{
+                                var fullWeek = filteredEmployees.Count(e => e.WorkingDaysPerWeek == 7);
+                                var sixDays = filteredEmployees.Count(e => e.WorkingDaysPerWeek == 6);
+                                var fiveDays = filteredEmployees.Count(e => e.WorkingDaysPerWeek == 5);
+                                var fourDays = filteredEmployees.Count(e => e.WorkingDaysPerWeek == 4);
+                                var partTime = filteredEmployees.Count(e => e.WorkingDaysPerWeek < 4);
+                            }
+
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-danger me-2">7/0</span>
+                                    Полная неделя
+                                </span>
+                                <span class="badge bg-danger rounded-pill">@fullWeek</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-warning text-dark me-2">6/1</span>
+                                    Шестидневка
+                                </span>
+                                <span class="badge bg-warning text-dark rounded-pill">@sixDays</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-success me-2">5/2</span>
+                                    Пятидневка
+                                </span>
+                                <span class="badge bg-success rounded-pill">@fiveDays</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-info me-2">4/3</span>
+                                    Четырехдневка
+                                </span>
+                                <span class="badge bg-info rounded-pill">@fourDays</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <span>
+                                    <span class="badge bg-secondary me-2">&lt;4</span>
+                                    Неполная неделя
+                                </span>
+                                <span class="badge bg-secondary rounded-pill">@partTime</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Сводная информация -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center border-primary">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Всего часов в неделю</h6>
+                        <h2 class="text-primary">@filteredEmployees.Sum(e => e.WorkingDaysPerWeek * e.HoursPerDay)</h2>
+                        <small class="text-muted">часов</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-success">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Средний рабочий день</h6>
+                        <h2 class="text-success">@averageHoursPerDay.ToString("F1")</h2>
+                        <small class="text-muted">часов</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-info">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Среднее дней в неделю</h6>
+                        <h2 class="text-info">@averageDaysPerWeek.ToString("F1")</h2>
+                        <small class="text-muted">дней</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center border-warning">
+                    <div class="card-body">
+                        <h6 class="card-title text-muted">Работают в выходные</h6>
+                        <h2 class="text-warning">@weekendWorkers</h2>
+                        <small class="text-muted">сотрудников</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .weekend-cell {
+        background-color: rgba(255, 193, 7, 0.1) !important;
+    }
+
+    .table-success {
+        background-color: rgba(25, 135, 84, 0.1) !important;
+    }
+
+    .progress-bar {
+        transition: width 0.3s ease;
+    }
+
+    .card {
+        transition: transform 0.2s;
+    }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+</style>
+
+@code {
+    // Данные
+    private List<Employee>? allEmployees;
+    private List<Employee>? filteredEmployees;
+
+    // Фильтры
+    private string searchText = "";
+    private string selectedJobTitle = "";
+    private bool highlightWeekends = true;
+
+    // Статистика
+    private double averageHoursPerDay;
+    private double averageDaysPerWeek;
+    private int weekendWorkers;
+    private List<string> jobTitles = new();
+
+    // Дни недели
+    private readonly List<(string FullName, string ShortName, int Index)> daysOfWeek = new()
+    {
+        ("Понедельник", "Пн", 0),
+        ("Вторник", "Вт", 1),
+        ("Среда", "Ср", 2),
+        ("Четверг", "Чт", 3),
+        ("Пятница", "Пт", 4),
+        ("Суббота", "Сб", 5),
+        ("Воскресенье", "Вс", 6)
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        var employees = await employeeService.GetEmployeesAsync();
+        allEmployees = employees.ToList();
+        ApplyFilters();
+        CalculateStatistics();
+
+        // Собираем уникальные должности для фильтра
+        jobTitles = allEmployees
+            .Select(e => e.Job_Title)
+            .Distinct()
+            .OrderBy(t => t)
+            .ToList();
+    }
+
+    private void ApplyFilters()
+    {
+        if (allEmployees == null) return;
+
+        filteredEmployees = allEmployees;
+
+        // Фильтр по поиску
+        if (!string.IsNullOrWhiteSpace(searchText))
+        {
+            filteredEmployees = filteredEmployees
+                .Where(e => e.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                           e.Surname.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                           e.Job_Title.Contains(searchText, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        // Фильтр по должности
+        if (!string.IsNullOrWhiteSpace(selectedJobTitle))
+        {
+            filteredEmployees = filteredEmployees
+                .Where(e => e.Job_Title == selectedJobTitle)
+                .ToList();
+        }
+    }
+
+    private void CalculateStatistics()
+    {
+        if (filteredEmployees == null || !filteredEmployees.Any()) return;
+
+        averageHoursPerDay = filteredEmployees.Average(e => e.HoursPerDay);
+        averageDaysPerWeek = filteredEmployees.Average(e => e.WorkingDaysPerWeek);
+        weekendWorkers = filteredEmployees
+            .Count(e => e.WorksOnDay(5) || e.WorksOnDay(6)); // Сб или Вс
+    }
+
+    private bool IsWeekend(int dayIndex)
+    {
+        return dayIndex == 5 || dayIndex == 6; // Суббота или воскресенье
+    }
+
+    private int GetWorkingCount(int dayIndex)
+    {
+        return filteredEmployees?.Count(e => e.WorksOnDay(dayIndex)) ?? 0;
+    }
+
+    private void ToggleWeekendHighlight()
+    {
+        highlightWeekends = !highlightWeekends;
+        StateHasChanged();
+    }
+}
